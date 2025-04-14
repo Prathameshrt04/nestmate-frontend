@@ -16,7 +16,7 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-  origin: ['http://localhost:5173','http://192.168.29.60:5173','http://172.16.67.51:5173','http://192.168.23.206:5173','http://10.127.98.51:5173'],
+  origin: ['http://localhost:5173','http://192.168.29.60:5173','http://172.16.67.51:5173','http://192.168.23.206:5173','http://10.127.98.51:5173','https://nestmate-black.vercel.app','https://nestmate.in','nestmate.in'],
   credentials: true,
 }));
 app.use(express.json());
