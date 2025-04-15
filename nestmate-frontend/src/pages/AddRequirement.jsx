@@ -47,7 +47,7 @@ const AddRequirement = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/requirements', {
+      const response = await fetch('http://nestmate-backend.onrender:5000/api/requirements', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

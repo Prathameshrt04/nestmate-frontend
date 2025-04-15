@@ -93,7 +93,7 @@ const EditService = () => {
     files.forEach(file => formDataUpload.append('images', file));
 
     try {
-      const response = await fetch('http://localhost:5000/api/services/upload', {
+      const response = await fetch('http://nestmate-backend.onrender:5000/api/services/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: formDataUpload,
@@ -391,7 +391,7 @@ const EditService = () => {
                     {formData.images.map((url, index) => (
                       <div key={index} className="relative rounded-lg overflow-hidden shadow-sm">
                         <img
-                          src={`${url.startsWith('http') ? url : `http://localhost:5000/Uploads/${url}`}`}
+                          src={`${url.startsWith('http') ? url : `http://nestmate-backend.onrender:5000/Uploads/${url}`}`}
                           alt={`Photo ${index}`}
                           className="w-full h-32 object-cover transition-transform hover:scale-105 duration-300"
                           onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=Image+Not+Found'; }}
