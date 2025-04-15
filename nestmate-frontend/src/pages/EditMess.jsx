@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/authContext';
+import messService from '../services/messService';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { Utensils, MapPin, Upload, Trash2, XCircle, CheckCircle, DollarSign, Clock, Users } from 'lucide-react';
-import api from '../services/api'; // Import centralized API instance
+import { Utensils, MapPin, Upload, Trash2, XCircle, CheckCircle, Users } from 'lucide-react';
 
 const LocationMarker = ({ position, setPosition }) => {
   const map = useMapEvents({
@@ -19,12 +19,19 @@ const EditMess = () => {
   const { id } = useParams();
   const { isAuthenticated, user, logout } = useAuth();
   const [formData, setFormData] = useState({
-    messName: '', description: '', ratePerMonth: '', ratePerPlate: '', type: '', timings: '',
-    location: { coordinates: { lat: '', lng: '' } }, images: [],
+    messName: '',
+    description: '',
+    ratePerMonth: '',
+    ratePerPlate: '',
+    type: '',
+    timings: '',
+    location: { coordinates: { lat: null, lng: null }, city: '', locality: '', landmark: '' },
+    images: [],
   });
   const [mapPosition, setMapPosition] = useState(null);
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
+  const baseUrl = import.meta.env.VITE_BASE_URL;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -35,10 +42,7 @@ const EditMess = () => {
 
     const fetchMess = async () => {
       try {
-       const response = await api.get(`/messes/${id}`);
-        setMesses(Array.isArray(response.data) ? response.data : []);
-        if (!response.ok) throw new Error('Failed to fetch mess');
-        const data = await response.json();
+        const data = await messService.getMessById(id);
         const userId = user?.id;
         const providerId = data.providerId._id || data.providerId;
         if (providerId !== userId) {
@@ -53,13 +57,22 @@ const EditMess = () => {
           ratePerPlate: data.ratePerPlate || '',
           type: data.type || '',
           timings: data.timings || '',
-          location: { coordinates: data.location?.coordinates || { lat: '', lng: '' } },
+          location: {
+            coordinates: {
+              lat: data.location?.coordinates?.lat || null,
+              lng: data.location?.coordinates?.lng || null,
+            },
+            city: data.location?.city || '',
+            locality: data.location?.locality || '',
+            landmark: data.location?.landmark || '',
+          },
           images: data.images || [],
         });
-        setMapPosition(data.location?.coordinates?.lat ? {
-          lat: data.location.coordinates.lat,
-          lng: data.location.coordinates.lng,
-        } : null);
+        setMapPosition(
+          data.location?.coordinates?.lat
+            ? { lat: data.location.coordinates.lat, lng: data.location.coordinates.lng }
+            : null
+        );
       } catch (error) {
         console.error('Fetch Mess Error:', error);
         alert('Failed to load mess details');
@@ -71,7 +84,14 @@ const EditMess = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (['city', 'locality', 'landmark'].includes(name)) {
+      setFormData(prev => ({
+        ...prev,
+        location: { ...prev.location, [name]: value },
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
@@ -81,12 +101,13 @@ const EditMess = () => {
     files.forEach(file => formDataUpload.append('images', file));
 
     try {
-      const response = await messService.uploadPhotos(formDataUpload); // Use messService
+      const response = await messService.uploadPhotos(formDataUpload);
       setFormData(prev => ({
         ...prev,
         images: [...prev.images, ...response.imageUrls],
       }));
     } catch (error) {
+      console.error('Upload Error:', error);
       alert(`Failed to upload photos: ${error.message || 'Unknown error'}`);
     }
   };
@@ -97,6 +118,7 @@ const EditMess = () => {
       images: prev.images.filter((_, i) => i !== index),
     }));
   };
+
   const validateForm = () => {
     const newErrors = {};
     if (!formData.messName) newErrors.messName = 'Mess name is required';
@@ -131,13 +153,13 @@ const EditMess = () => {
             lat: Number(formData.location.coordinates.lat),
             lng: Number(formData.location.coordinates.lng),
           },
+          city: formData.location.city,
+          locality: formData.location.locality,
+          landmark: formData.location.landmark,
         },
         images: formData.images,
       };
-      const response = await api.put(`/messes/${id}`,JSON.stringify(updatedData));
-        setMesses(Array.isArray(response.data) ? response.data : []);
-      
-      if (!response.ok) throw new Error('Failed to update mess');
+      await messService.updateMess(id, updatedData);
       alert('Mess updated successfully!');
       navigate('/dashboard');
     } catch (error) {
@@ -257,6 +279,36 @@ const EditMess = () => {
                 Location Details
               </h2>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input
+                  name="city"
+                  value={formData.location.city}
+                  onChange={handleChange}
+                  placeholder="e.g., Pune"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Locality</label>
+                <input
+                  name="locality"
+                  value={formData.location.locality}
+                  onChange={handleChange}
+                  placeholder="e.g., FC Road"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
+                <input
+                  name="landmark"
+                  value={formData.location.landmark}
+                  onChange={handleChange}
+                  placeholder="e.g., Near Fergusson College"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Location on Map</label>
                 <MapContainer
                   center={mapPosition || [18.5204, 73.8567]}
@@ -308,10 +360,10 @@ const EditMess = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Current Photos</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {formData.images.map((url, index) => (
+                    {formData.images.map((filename, index) => (
                       <div key={index} className="relative rounded-lg overflow-hidden shadow-sm">
                         <img
-                          src={`${url.startsWith('http') ? url : `https://nestmate-backend.onrender:5000/Uploads/${url}`}`}
+                          src={`${baseUrl}/Uploads/${filename}`}
                           alt={`Photo ${index}`}
                           className="w-full h-32 object-cover transition-transform hover:scale-105 duration-300"
                           onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=Image+Not+Found'; }}
