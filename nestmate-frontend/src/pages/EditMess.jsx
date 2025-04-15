@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/authContext';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Utensils, MapPin, Upload, Trash2, XCircle, CheckCircle, DollarSign, Clock, Users } from 'lucide-react';
+import api from '../services/api'; // Import centralized API instance
 
 const LocationMarker = ({ position, setPosition }) => {
   const map = useMapEvents({
@@ -34,9 +35,8 @@ const EditMess = () => {
 
     const fetchMess = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/messes/${id}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        });
+       const response = await api.get(`/messes/${id}`);
+        setMesses(Array.isArray(response.data) ? response.data : []);
         if (!response.ok) throw new Error('Failed to fetch mess');
         const data = await response.json();
         const userId = user?.id;
@@ -81,19 +81,12 @@ const EditMess = () => {
     files.forEach(file => formDataUpload.append('images', file));
 
     try {
-      const response = await fetch('http://localhost:5000/api/messes/upload', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: formDataUpload,
-      });
-      if (!response.ok) throw new Error('Failed to upload images');
-      const data = await response.json();
+      const response = await messService.uploadPhotos(formDataUpload); // Use messService
       setFormData(prev => ({
         ...prev,
-        images: [...prev.images, ...data.imageUrls],
+        images: [...prev.images, ...response.imageUrls],
       }));
     } catch (error) {
-      console.error('Upload Error:', error);
       alert(`Failed to upload photos: ${error.message || 'Unknown error'}`);
     }
   };
@@ -141,14 +134,9 @@ const EditMess = () => {
         },
         images: formData.images,
       };
-      const response = await fetch(`http://localhost:5000/api/messes/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(updatedData),
-      });
+      const response = await api.put(`/messes/${id}`,JSON.stringify(updatedData));
+        setMesses(Array.isArray(response.data) ? response.data : []);
+      
       if (!response.ok) throw new Error('Failed to update mess');
       alert('Mess updated successfully!');
       navigate('/dashboard');
@@ -323,7 +311,7 @@ const EditMess = () => {
                     {formData.images.map((url, index) => (
                       <div key={index} className="relative rounded-lg overflow-hidden shadow-sm">
                         <img
-                          src={`${url.startsWith('http') ? url : `http://localhost:5000/Uploads/${url}`}`}
+                          src={`${url.startsWith('http') ? url : `https://nestmate-backend.onrender:5000/Uploads/${url}`}`}
                           alt={`Photo ${index}`}
                           className="w-full h-32 object-cover transition-transform hover:scale-105 duration-300"
                           onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=Image+Not+Found'; }}
